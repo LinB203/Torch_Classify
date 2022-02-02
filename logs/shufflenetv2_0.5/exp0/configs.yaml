@@ -1,0 +1,36 @@
+cfg:
+  config_path: ''
+  load_from: C:\Torch_Classify-master\weights\before_shufflenetv2_weights\shufflenetv2_x0.5-f707e7126e.pth
+  model_prefix: shufflenetv2
+  model_suffix: '0.5'
+  img_path: data/ImageNetTE
+  log_root: logs
+  exp_name: exp
+  mean:
+  - 0.485
+  - 0.456
+  - 0.406
+  std:
+  - 0.229
+  - 0.224
+  - 0.225
+  img_size:
+  - 224
+  - 224
+  num_classes: 5
+  batch_size: 64
+  epochs: 200
+  device: cuda:0
+  use_benchmark: true
+  use_apex: true
+  num_workers: 2
+  warmup_epochs: 15
+  optimizer_type: adamw
+  init_lr: 0.01
+  scheduler_type: cosine_lr
+  steps:
+  - 30
+  - 40
+  loss_type: LabelSmoothCELoss
+  alpha: 1
+  gamma: 2
