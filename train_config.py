@@ -71,7 +71,7 @@ configurations = {
         std=[0.229, 0.224, 0.225],  # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
         mixup=False,  # set num_workers=0 on Windows if use
         cutmix=False,  # set num_workers=0 on Windows if use
-        augment='tawide',  # ['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']
+        augment='simple',  # ['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']
         num_workers=0,  # how many workers to use for data loading. 'auto' means auto-select
         img_size=[224, 224],  # especially for efficientnetv1 b0->224, b1->240, b2->260, b3->300, b4->380, b5->456, b6->528, b7->600
                               # especially for xception 299

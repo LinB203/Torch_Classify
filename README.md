@@ -14,7 +14,7 @@
 
 * 纠正了环境配置
 * 增加['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']的数据增强
-* 增加cutmix、mixup、ema、clip—grad
+* 增加cutmix、mixup、ema、clip_grad
 * 优化外部apex为torch.cuda.apex
 * 优化断点续训的功能
 
@@ -137,6 +137,7 @@
 ```
 conda create -n torch110 python=3.8
 conda activate torch110
+# Windows & Linux
 pip3 install torch==1.10.0+cu102 torchvision==0.11.1+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
 ```
 
@@ -197,11 +198,15 @@ model_suffix='0.5'
 # 参考
 
 1. https://github.com/pytorch/vision/tree/master/torchvision/models
+
 2. https://github.com/WZMIAOMIAO/deep-learning-for-image-processing/tree/master/pytorch_classification
+
 3. https://github.com/rwightman/pytorch-image-models/tree/master/timm/models
+
 4. https://github.com/yizt/Grad-CAM.pytorch
 
 # 联系方式
 
 bilibili：https://space.bilibili.com/315678922
+
 E-mail：201902098@stu.sicau.edu.cn

@@ -91,7 +91,7 @@ if __name__ == '__main__':
         train_compose.append(autoaugment.RandAugment(interpolation=InterpolationMode.BILINEAR))
     elif augment == 'simple':
         pass
-    elif augment == 'rawide':
+    elif augment == 'tawide':
         train_compose.append(autoaugment.TrivialAugmentWide(interpolation=InterpolationMode.BILINEAR))
     else:
         train_compose.append(autoaugment.AutoAugment(policy=autoaugment.AutoAugmentPolicy(augment),
@@ -169,7 +169,6 @@ if __name__ == '__main__':
             load_train_weight(net, load_from, optimizer, scheduler, scaler, net_ema)
         else:
             raise FileNotFoundError("[INFO] Not found weights file: {}...".format(load_from))
-        print('[INFO] Successfully Load Weight From {}...'.format(load_from))
 
     plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, scheduler.last_epoch, steps, warmup_epochs, epochs, log_dir)
 
