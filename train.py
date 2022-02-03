@@ -1,22 +1,31 @@
 if __name__ == '__main__':
+    import os
+    import json
     import warnings
     warnings.filterwarnings("ignore")
-    import json
-    from torch.utils.data import DataLoader
-    from models.create_models import create_model
-    import torch
-    from torchvision import transforms, datasets
-    import os
+    import numpy as np
     from tqdm import tqdm
-    from utils.confusion import ConfusionMatrix
+    from time import time
+
+    import torch
+    from torch import nn
+    from torch.utils.data import DataLoader
+    from torch.utils.data.dataloader import default_collate
     from torch.utils.tensorboard import SummaryWriter
+
+    from torchvision import transforms, datasets
+    from torchvision.transforms import autoaugment, transforms
+    from torchvision.transforms.functional import InterpolationMode
+
+    from models.create_models import create_model
     from utils.scheduler import get_lr, create_scheduler
     from utils.optimizer import create_optimizer
     from utils.plots import plot_datasets, plot_txt, plot_lr_scheduler, plot_loss, plot_confusion_matrix
     from utils.loss import create_loss
-    from utils.general import create_config, increment_path, load_train_weight, load_config
+    from utils.confusion import ConfusionMatrix
+    from utils.general import create_config, increment_path, load_train_weight, load_config, ExponentialMovingAverage
+    from utils.transform import RandomMixup, RandomCutmix
     from train_config import configurations
-    import numpy as np
 
     cfg = configurations['cfg']
     cfg_path = cfg['config_path']
@@ -46,6 +55,13 @@ if __name__ == '__main__':
     alpha = cfg['alpha']
     gamma = cfg['gamma']
     use_apex = cfg['use_apex']
+    mixup = cfg['mixup']
+    cutmix = cfg['cutmix']
+    augment = cfg['augment']
+    use_ema = cfg['use_ema']
+    clip_grad = cfg['clip_grad']
+    print(cfg)
+
     model_name = model_prefix + '_' + model_suffix
     log_dir = increment_path(os.path.join(log_root, model_name, exp_name))
     os.makedirs(log_dir, exist_ok=True)
@@ -58,9 +74,7 @@ if __name__ == '__main__':
 
     if use_benchmark:
         torch.backends.cudnn.benchmark = True
-    print('[INFO] Using Model:{} Epoch:{} BatchSize:{} LossType:{} '
-          'OptimizerType:{} SchedulerType:{}...'.format(model_name, epochs, batch_size,
-                                                        loss_type, optimizer_type, scheduler_type))
+
     print('[INFO] Logs will be saved in {}...'.format(log_dir))
 
     class_index = ' '.join(['%7s'%(str(i)) for i in np.arange(num_classes)])
@@ -69,27 +83,50 @@ if __name__ == '__main__':
                 class_index + ' ' + class_index + ' ' + class_index)
 
     print("[INFO] Using {} device...".format(device))
-
-    data_transform = {"train": transforms.Compose([transforms.RandomResizedCrop(img_size),
-                                                   transforms.RandomHorizontalFlip(),
-                                                   transforms.ToTensor(),
-                                                   transforms.Normalize(mean, std)]),
-                      "val": transforms.Compose([transforms.Resize(img_size),
-                                                 transforms.ToTensor(),
-                                                 transforms.Normalize(mean, std)])}
-    if num_workers =='auto':
+    if num_workers == 'auto':
         num_workers = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
-    print('[INFO] Using {} dataloader workers every process'.format(num_workers))
+
+    train_compose = [transforms.RandomResizedCrop(img_size)]
+    if augment == 'ra':
+        train_compose.append(autoaugment.RandAugment(interpolation=InterpolationMode.BILINEAR))
+    elif augment == 'simple':
+        pass
+    elif augment == 'rawide':
+        train_compose.append(autoaugment.TrivialAugmentWide(interpolation=InterpolationMode.BILINEAR))
+    else:
+        train_compose.append(autoaugment.AutoAugment(policy=autoaugment.AutoAugmentPolicy(augment),
+                                                     interpolation=InterpolationMode.BILINEAR))
+
+    train_compose.extend([transforms.PILToTensor(), transforms.ConvertImageDtype(torch.float),
+                          transforms.Normalize(mean, std), transforms.RandomErasing(p=0.2),
+                          transforms.RandomHorizontalFlip(p=0.5)])
+    data_transform = {"train": transforms.Compose(train_compose),
+                      "val": transforms.Compose([transforms.Resize(img_size),
+                                                 transforms.PILToTensor(),
+                                                 transforms.ConvertImageDtype(torch.float),
+                                                 transforms.Normalize(mean, std)])}
 
     train_dataset = datasets.ImageFolder(root=train_root, transform=data_transform["train"])
     train_num = len(train_dataset)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                               pin_memory=True, num_workers=num_workers)
+
+    if mixup or cutmix:
+        mixup_transforms = []
+        if cutmix:
+            mixup_transforms.append(RandomCutmix(num_classes, p=1.0, alpha=1.0))
+        if mixup:
+            mixup_transforms.append(RandomMixup(num_classes, p=1.0, alpha=1.0))
+        mixupcutmix = transforms.RandomChoice(mixup_transforms)
+        collate_fn = lambda batch: mixupcutmix(*default_collate(batch))
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                                                   pin_memory=False, num_workers=num_workers, collate_fn=collate_fn)
+    else:
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                                                   pin_memory=False, num_workers=num_workers)
 
     validate_dataset = datasets.ImageFolder(root=val_root, transform=data_transform["val"])
     val_num = len(validate_dataset)
     validate_loader = torch.utils.data.DataLoader(validate_dataset, batch_size=batch_size, shuffle=False,
-                                                  pin_memory=True, num_workers=num_workers)
+                                                  pin_memory=False, num_workers=num_workers)
     print('[INFO] Load Image From {}...'.format(img_path))
 
     # write dict into json file
@@ -105,30 +142,37 @@ if __name__ == '__main__':
     print('[INFO] {} to train, {} to val, total {} classes...'.format(train_num, val_num, num_classes))
     net = create_model(model_name=model_name, num_classes=num_classes).to(device)
 
-    loss_function = create_loss(loss_type, alpha=alpha,
-                                gamma=gamma, num_classes=num_classes)
+    loss_function = create_loss(loss_type, alpha=alpha, gamma=gamma, num_classes=num_classes)
 
     optimizer = create_optimizer(optimizer_type, net, init_lr)
     scheduler = create_scheduler(scheduler_type, optimizer, epochs, steps, warmup_epochs)
-    # print(scheduler.last_epoch)
+    scaler = torch.cuda.amp.GradScaler() if use_apex else None
+
+    net_ema = None
+    if use_ema:
+        ema_decay = 0.99998
+        ema_steps = 32
+        # Decay adjustment that aims to keep the decay independent from other hyper-parameters originally proposed at:
+        # https://github.com/facebookresearch/pycls/blob/f8cd9627/pycls/core/net.py#L123
+        #
+        # total_ema_updates = (Dataset_size / n_GPUs) * epochs / (batch_size_per_gpu * EMA_steps)
+        # We consider constant = Dataset_size for a given dataset/setup and ommit it. Thus:
+        # adjust = 1 / total_ema_updates ~= n_GPUs * batch_size_per_gpu * EMA_steps / epochs
+        adjust = 1 * batch_size * ema_steps / epochs
+        alpha = 1.0 - ema_decay
+        alpha = min(1.0, alpha * adjust)
+        net_ema = ExponentialMovingAverage(net, device=device, decay=1.0 - alpha)
+
     if load_from != "":
         print('[INFO] Load Weight From {}...'.format(load_from))
         if os.path.exists(load_from):
-            net, optimizer, start_epoch = load_train_weight(net, load_from, optimizer, scheduler.last_epoch)
-            scheduler.last_epoch = start_epoch
+            load_train_weight(net, load_from, optimizer, scheduler, scaler, net_ema)
         else:
             raise FileNotFoundError("[INFO] Not found weights file: {}...".format(load_from))
         print('[INFO] Successfully Load Weight From {}...'.format(load_from))
-    else:
-        start_epoch = 0
-        scheduler.last_epoch = start_epoch
 
-    plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, warmup_epochs, epochs, log_dir)
+    plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, scheduler.last_epoch, steps, warmup_epochs, epochs, log_dir)
 
-    if use_apex:
-        from apex import amp
-        net, optimizer = amp.initialize(net, optimizer, opt_level='O1')
-        print('[INFO] Using Mixed-precision to train...')
     best_acc = 0.0
     train_steps = len(train_loader)
     val_steps = len(validate_loader)
@@ -136,24 +180,42 @@ if __name__ == '__main__':
     val_loss_list = []
     print('[INFO] Start Training...')
 
-    for epoch in range(start_epoch, epochs):
+    start_time = time()
+    for epoch in range(scheduler.last_epoch, epochs):
         net.train()
         train_per_epoch_loss = 0.0
         train_bar = tqdm(train_loader)
         for step, (images, labels) in enumerate(train_bar):
             images, labels = images.to(device), labels.to(device)
+            with torch.cuda.amp.autocast(enabled=scaler is not None):
+                outputs = net(images)
+                loss = loss_function(outputs, labels)
             optimizer.zero_grad()
-            outputs = net(images)
-            loss = loss_function(outputs, labels)
-            if use_apex:
-                with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    scaled_loss.backward()
+            if scaler is not None:
+                scaler.scale(loss).backward()
+                if clip_grad:
+                    # we should unscale the gradients of optimizer's assigned params if do gradient clipping
+                    scaler.unscale_(optimizer)
+                    clip_grad_norm = 1
+                    nn.utils.clip_grad_norm_(net.parameters(), clip_grad_norm)
+                scaler.step(optimizer)
+                scaler.update()
             else:
                 loss.backward()
+                if clip_grad:
+                    clip_grad_norm = 1
+                    nn.utils.clip_grad_norm_(net.parameters(), clip_grad_norm)
+                optimizer.step()
+
+            if net_ema and step % ema_steps == 0:
+                net_ema.update_parameters(net)
+                if epoch < warmup_epochs:
+                    # Reset ema buffer to keep copying weights during warmup period
+                    net_ema.n_averaged.fill_(0)
+
             # print statistics
             train_per_epoch_loss += loss.item()
             train_bar.desc = "train epoch[{}/{}] train_loss:{:.3f} lr:{:.6f}".format(epoch + 1, epochs, loss, get_lr(optimizer))
-            optimizer.step()
 
         train_per_epoch_loss = train_per_epoch_loss / train_steps
         train_loss_list.append(train_per_epoch_loss)
@@ -196,17 +258,26 @@ if __name__ == '__main__':
         if confusion.mean_val_accuracy > best_acc:
             best_acc = confusion.mean_val_accuracy
             checkpoint = {'epoch': epoch, 'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()}
+            if scaler:
+                checkpoint["scaler"] = scaler.state_dict()
+            if net_ema:
+                checkpoint["net_ema"] = net_ema.state_dict()
             torch.save(checkpoint, log_dir + '/best.pth')
-        if epoch+1 != epochs:
+        if epoch + 1 != epochs:
             confusion.save(results_file, epoch + 1)
         else:
             confusion_matrix = confusion.confusionmat.int().numpy()
             confusion.save(results_file, epoch + 1)
 
     checkpoint = {'epoch': epochs, 'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()}
+    if scaler:
+        checkpoint["scaler"] = scaler.state_dict()
+    if net_ema:
+        checkpoint["net_ema"] = net_ema.state_dict()
     torch.save(checkpoint, log_dir + '/last.pth')
     plot_txt(log_dir, num_classes, labels_name)
     plot_loss(log_dir, train_loss_list, val_loss_list)
     plot_confusion_matrix(confusion_matrix, log_dir)
     print('[INFO] Results will be saved in {}...'.format(log_dir))
-    print('[INFO] Finished...')
+    print('[INFO] Finish Training...Cost time: %ss'%(time()-start_time))
+    print(cfg)

@@ -47,25 +47,14 @@
 
 configurations = {
     'cfg': dict(
-        load_from=r"",  # pretrain weight of imagenet
-        model_prefix='resnet',  # above model_prefix
-        model_suffix='18',  # above model_suffix
-        img_path='data/ImageNetTE',  # the parent root where your train/val data are stored, not support test data
-                          # -data
-                          #    -train
-                          #       -class_0
-                          #          -1.jpg
-                          #       -class_1
-                          #       -...
-                          #    -val
-                          #       -class_0
-                          #       -class_1
-                          #       -...
-        predict_img_path=r"imgs\02500_4.jpg",  # only use in predict.py
-        class_indices_path="logs\shufflenetv2_0.5\exp1\class_indices.json",  # only use in predict.py
+        load_from=r"C:\Torch_Classify\logs\shufflenetv2_0.5\exp0\last.pth",  # pretrain weight of imagenet
+        model_prefix='shufflenetv2',  # above model_prefix
+        model_suffix='0.5',  # above model_suffix
+        predict_img_path=r"C:\Torch_Classify\data\ImageNetTE\train\n01440764\ILSVRC2012_val_00017472.JPEG",  # only use in predict.py
+        class_indices_path="logs\shufflenetv2_0.5\exp0\class_indices.json",  # only use in predict.py
         log_root='logs',  # the root to log your train/val status
-        mean=[0.5, 0.5, 0.5],  # [0.485, 0.456, 0.406] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
-        std=[0.5, 0.5, 0.5],  # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
+        mean=[0.485, 0.456, 0.406],  # [0.485, 0.456, 0.406] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
+        std=[0.229, 0.224, 0.225],  # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
         img_size=[224, 224],  # especially for efficientnetv1 b0->224, b1->240, b2->260, b3->300, b4->380, b5->456, b6->528, b7->600
                               # especially for xception 299
                               # especially for vit 224

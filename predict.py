@@ -19,7 +19,6 @@ if __name__ == '__main__':
     device = cfg['device']
     model_prefix = cfg['model_prefix']
     model_suffix = cfg['model_suffix']
-    log_root = cfg['log_root']
     class_indices_path = cfg['class_indices_path']
     model_name = model_prefix + '_' + model_suffix
 
@@ -51,7 +50,7 @@ if __name__ == '__main__':
     if load_from != "":
         print('[INFO] Load Weight From {}...'.format(load_from))
         if os.path.exists(load_from):
-            net = load_predict_weight(net, load_from)
+            load_predict_weight(net, load_from)
         else:
             raise FileNotFoundError("[INFO] Not found weights file: {}...".format(load_from))
         print('[INFO] Successfully Load Weight From {}...'.format(load_from))

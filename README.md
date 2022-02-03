@@ -10,6 +10,14 @@
 
 ## 目前
 
+#### 2022.02.03
+
+* 纠正了环境配置
+* 增加['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']的数据增强
+* 增加cutmix、mixup、ema、clip—grad
+* 优化外部apex为torch.cuda.apex
+* 优化断点续训的功能
+
 #### 2022.02.02
 
 * 纠正了环境配置
@@ -120,8 +128,8 @@
 * Anaconda3
 * python 3.8
 * pycharm (IDE， 建议使用)
-* pytorch 1.10(若不需要SwinT，降级到1.7是没问题的)
-* apex 0.1.0
+* pytorch 1.10(若不需要SwinT，降级到1.8是没问题的)
+* torchvision 0.11.1
 * Cuda10.2
 
 ### 安装Pytorch
@@ -131,19 +139,12 @@ conda create -n torch110 python=3.8
 conda activate torch110
 pip3 install torch==1.10.0+cu102 torchvision==0.11.1+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
 ```
-### 安装apex (非必须，若不需要则train_config.py中use_apex=False)
-
-```
-cd apex-master
-pip install -r requirements.txt
-python setup.py install
-```
 
 # 训练
 
 在train_config.py中修改你想要的模型配置，注意，我的代码中，**每个模型有2部分组成**，分别是model_prefix和model_suffix。
 
-例如
+例如：
 
 ```
 model_prefix='shufflenetv2'
@@ -199,7 +200,6 @@ model_suffix='0.5'
 2. https://github.com/WZMIAOMIAO/deep-learning-for-image-processing/tree/master/pytorch_classification
 3. https://github.com/rwightman/pytorch-image-models/tree/master/timm/models
 4. https://github.com/yizt/Grad-CAM.pytorch
-
 
 # 联系方式
 

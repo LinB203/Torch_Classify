@@ -3,20 +3,6 @@ import torch.nn.functional as F
 import torch
 
 
-class LabelSmoothCELoss(nn.Module):
-    def __init__(self):
-        super(LabelSmoothCELoss, self).__init__()
-
-    def forward(self, pred, label, smoothing=0.1):
-        pred = F.softmax(pred, dim=1)
-        one_hot_label = F.one_hot(label, pred.size(1)).float()
-        smoothed_one_hot_label = (1.0 - smoothing) * one_hot_label + smoothing / pred.size(1)
-        loss = (-torch.log(pred)) * smoothed_one_hot_label
-        loss = loss.sum(axis=1, keepdim=False)
-        loss = loss.mean()
-
-        return loss
-
 
 class focal_loss(nn.Module):
     def __init__(self, alpha=0.25, gamma=2, num_classes=3, size_average=True):
@@ -74,7 +60,7 @@ def create_loss(loss_type, **kwargs):
     if loss_type == 'CELoss':
         return nn.CrossEntropyLoss()
     elif loss_type == 'LabelSmoothCELoss':
-        return LabelSmoothCELoss()
+        return nn.CrossEntropyLoss(label_smoothing=0.1)
     elif loss_type == 'FocalLoss':
         return focal_loss(**kwargs)
     else:
