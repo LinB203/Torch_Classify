@@ -1,7 +1,6 @@
 import os
 import json
-from utils.scheduler import get_lr, create_scheduler
-from utils.optimizer import create_optimizer
+from torch import optim
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -73,21 +72,41 @@ def plot_txt(log_dir, num_classes, labels_name):
 
 
 def plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, warmup_epochs, epochs, log_dir):
-    optimizer_ = create_optimizer(optimizer_type, net, init_lr)
-    scheduler_ = create_scheduler(scheduler_type, optimizer_, epochs, steps, warmup_epochs)
+
+    if optimizer_type == 'sgd':
+        optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001)
+    elif optimizer_type == 'adam':
+        optimizer = optim.Adam(net.parameters(), lr=init_lr, weight_decay=0.0001)
+    elif optimizer_type == 'adamw':
+        optimizer = optim.AdamW(net.parameters(), lr=init_lr, weight_decay=0.0001)
+    elif optimizer_type == 'rmsprop':
+        optimizer = optim.RMSprop(net.parameters(), lr=init_lr, alpha=0.9, eps=0.0316, weight_decay=0.0001, momentum=0.9)
+    else:
+        raise ValueError('Unsupported optimizer_type - `{}`. Only sgd, adam, adamw, rmsprop'.format(optimizer_type))
+
+    if scheduler_type == "step_lr":
+        main_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps)
+    elif scheduler_type == "cosine_lr":
+        main_lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+    else:
+        raise ValueError('Unsupported scheduler_type - {}. Only step_lr, cosine_lr are supported.'.format(scheduler_type))
+
+    if warmup_epochs > 0:
+            warmup_lr_scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=warmup_epochs)
+    scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmup_lr_scheduler, main_lr_scheduler],
+                                                      milestones=[warmup_epochs])
+
     plt.figure()
     y = []
-    scheduler_.last_epoch = start_epoch - 1
-    scheduler_.step()
-    for epoch in range(start_epoch, epochs):
-        y.append(optimizer_.param_groups[0]['lr'])
-        # print('epoch:', epoch, 'scheduler.last_epoch', scheduler_.last_epoch, 'lr:', optimizer_.param_groups[0]['lr'])
-        scheduler_.step()
-    plt.plot(np.arange(start_epoch, epochs), y, c='r', label='lr', linewidth=1)
+    for epoch in range(epochs):
+        y.append(optimizer.param_groups[0]['lr'])
+        # print('epoch:', epoch, 'scheduler.last_epoch', scheduler.last_epoch, 'lr:', optimizer.param_groups[0]['lr'])
+        scheduler.step()
+    plt.plot(np.arange(epochs)[start_epoch: ], y[start_epoch: ], c='r', label='lr', linewidth=1)
     plt.legend(loc='best')
     # if scheduler_type!='cosine_lr':
     #     plt.yscale("log")
-    plt.savefig(os.path.join(log_dir, 'lr_scheduler.jpg'), dpi=600, bbox_inches='tight')
+    plt.savefig(os.path.join(log_dir, 'scheduler.jpg'), dpi=600, bbox_inches='tight')
 
 def plot_loss(log_dir, train_loss_list, val_loss_list):
     plt.figure()
@@ -118,5 +137,5 @@ def plot_confusion_matrix(matrix, log_dir):
     plt.ylabel('True Labels')
     plt.title('Confusion Matrix')
     plt.tight_layout()
-    plt.savefig(os.path.join(log_dir, 'confusion matrix.jpg'), dpi=600, bbox_inches='tight')
+    plt.savefig(os.path.join(log_dir, 'confusion_matrix.jpg'), dpi=600, bbox_inches='tight')
 

@@ -1,3 +1,5 @@
+from copy import copy, deepcopy
+
 if __name__ == '__main__':
     import os
     import json
@@ -9,6 +11,7 @@ if __name__ == '__main__':
 
     import torch
     from torch import nn
+    from torch import optim
     from torch.utils.data import DataLoader
     from torch.utils.data.dataloader import default_collate
     from torch.utils.tensorboard import SummaryWriter
@@ -18,10 +21,7 @@ if __name__ == '__main__':
     from torchvision.transforms.functional import InterpolationMode
 
     from models.create_models import create_model
-    from utils.scheduler import get_lr, create_scheduler
-    from utils.optimizer import create_optimizer
     from utils.plots import plot_datasets, plot_txt, plot_lr_scheduler, plot_loss, plot_confusion_matrix
-    from utils.loss import create_loss
     from utils.confusion import ConfusionMatrix
     from utils.general import create_config, increment_path, load_train_weight, load_config, ExponentialMovingAverage
     from utils.transform import RandomMixup, RandomCutmix
@@ -52,8 +52,6 @@ if __name__ == '__main__':
     steps = cfg['steps']
     warmup_epochs = cfg['warmup_epochs']
     loss_type = cfg['loss_type']
-    alpha = cfg['alpha']
-    gamma = cfg['gamma']
     use_apex = cfg['use_apex']
     mixup = cfg['mixup']
     cutmix = cfg['cutmix']
@@ -86,22 +84,22 @@ if __name__ == '__main__':
     if num_workers == 'auto':
         num_workers = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
 
-    train_compose = [transforms.RandomResizedCrop(img_size)]
+    IpMode = InterpolationMode.BILINEAR
+    train_compose = [transforms.RandomResizedCrop(img_size, interpolation=IpMode), transforms.RandomHorizontalFlip(p=0.5)]
     if augment == 'ra':
-        train_compose.append(autoaugment.RandAugment(interpolation=InterpolationMode.BILINEAR))
+        train_compose.append(autoaugment.RandAugment(interpolation=IpMode))
     elif augment == 'simple':
         pass
     elif augment == 'tawide':
-        train_compose.append(autoaugment.TrivialAugmentWide(interpolation=InterpolationMode.BILINEAR))
+        train_compose.append(autoaugment.TrivialAugmentWide(interpolation=IpMode))
     else:
-        train_compose.append(autoaugment.AutoAugment(policy=autoaugment.AutoAugmentPolicy(augment),
-                                                     interpolation=InterpolationMode.BILINEAR))
+        train_compose.append(autoaugment.AutoAugment(policy=autoaugment.AutoAugmentPolicy(augment), interpolation=IpMode))
 
     train_compose.extend([transforms.PILToTensor(), transforms.ConvertImageDtype(torch.float),
-                          transforms.Normalize(mean, std), transforms.RandomErasing(p=0.2),
-                          transforms.RandomHorizontalFlip(p=0.5)])
+                          transforms.Normalize(mean, std), transforms.RandomErasing(p=0.2)])
     data_transform = {"train": transforms.Compose(train_compose),
-                      "val": transforms.Compose([transforms.Resize(img_size),
+                      "val": transforms.Compose([transforms.Resize((int(img_size[0] * 1.143), int(img_size[1] * 1.143)), interpolation=IpMode),
+                                                 transforms.CenterCrop(img_size),
                                                  transforms.PILToTensor(),
                                                  transforms.ConvertImageDtype(torch.float),
                                                  transforms.Normalize(mean, std)])}
@@ -114,19 +112,19 @@ if __name__ == '__main__':
         if cutmix:
             mixup_transforms.append(RandomCutmix(num_classes, p=1.0, alpha=1.0))
         if mixup:
-            mixup_transforms.append(RandomMixup(num_classes, p=1.0, alpha=1.0))
+            mixup_transforms.append(RandomMixup(num_classes, p=1.0, alpha=0.2))
         mixupcutmix = transforms.RandomChoice(mixup_transforms)
         collate_fn = lambda batch: mixupcutmix(*default_collate(batch))
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                                   pin_memory=False, num_workers=num_workers, collate_fn=collate_fn)
+                                                   pin_memory=True, num_workers=num_workers, collate_fn=collate_fn)
     else:
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                                                   pin_memory=False, num_workers=num_workers)
+                                                   pin_memory=True, num_workers=num_workers)
 
     validate_dataset = datasets.ImageFolder(root=val_root, transform=data_transform["val"])
     val_num = len(validate_dataset)
     validate_loader = torch.utils.data.DataLoader(validate_dataset, batch_size=batch_size, shuffle=False,
-                                                  pin_memory=False, num_workers=num_workers)
+                                                  pin_memory=True, num_workers=num_workers)
     print('[INFO] Load Image From {}...'.format(img_path))
 
     # write dict into json file
@@ -142,10 +140,37 @@ if __name__ == '__main__':
     print('[INFO] {} to train, {} to val, total {} classes...'.format(train_num, val_num, num_classes))
     net = create_model(model_name=model_name, num_classes=num_classes).to(device)
 
-    loss_function = create_loss(loss_type, alpha=alpha, gamma=gamma, num_classes=num_classes)
+    if loss_type == 'CELoss':
+        loss_function = nn.CrossEntropyLoss()
+    elif loss_type == 'LabelSmoothCELoss':
+        loss_function = nn.CrossEntropyLoss(label_smoothing=0.1)
+    else:
+        raise ValueError('Unsupported loss_type - `{}`, Use CELoss, LabelSmoothCELoss'.format(loss_type))
 
-    optimizer = create_optimizer(optimizer_type, net, init_lr)
-    scheduler = create_scheduler(scheduler_type, optimizer, epochs, steps, warmup_epochs)
+    if optimizer_type == 'sgd':
+        optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001)
+    elif optimizer_type == 'adam':
+        optimizer = optim.Adam(net.parameters(), lr=init_lr, weight_decay=0.0001)
+    elif optimizer_type == 'adamw':
+        optimizer = optim.AdamW(net.parameters(), lr=init_lr, weight_decay=0.0001)
+    elif optimizer_type == 'rmsprop':
+        optimizer = optim.RMSprop(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001, alpha=0.9, eps=0.0316)
+    else:
+        raise ValueError('Unsupported optimizer_type - `{}`. Only sgd, adam, adamw, rmsprop'.format(optimizer_type))
+
+    if scheduler_type == "step_lr":
+        main_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps)
+    elif scheduler_type == "cosine_lr":
+        main_lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+    else:
+        raise ValueError('Unsupported scheduler_type - {}. Only step_lr, cosine_lr are supported.'.format(scheduler_type))
+
+    if warmup_epochs > 0:
+        warmup_lr_scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=warmup_epochs)
+        scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmup_lr_scheduler, main_lr_scheduler],
+                                                      milestones=[warmup_epochs])
+    else:
+        scheduler = main_lr_scheduler
     scaler = torch.cuda.amp.GradScaler() if use_apex else None
 
     net_ema = None
@@ -170,7 +195,8 @@ if __name__ == '__main__':
         else:
             raise FileNotFoundError("[INFO] Not found weights file: {}...".format(load_from))
 
-    plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, scheduler.last_epoch, steps, warmup_epochs, epochs, log_dir)
+    start_epoch = scheduler.last_epoch
+    plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, warmup_epochs, epochs, log_dir)
 
     best_acc = 0.0
     train_steps = len(train_loader)
@@ -214,7 +240,7 @@ if __name__ == '__main__':
 
             # print statistics
             train_per_epoch_loss += loss.item()
-            train_bar.desc = "train epoch[{}/{}] train_loss:{:.3f} lr:{:.6f}".format(epoch + 1, epochs, loss, get_lr(optimizer))
+            train_bar.desc = "train epoch[{}/{}] train_loss:{:.3f} lr:{:.6f}".format(epoch + 1, epochs, loss, optimizer.param_groups[0]["lr"])
 
         train_per_epoch_loss = train_per_epoch_loss / train_steps
         train_loss_list.append(train_per_epoch_loss)

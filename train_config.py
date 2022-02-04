@@ -49,10 +49,10 @@
 configurations = {
     'cfg': dict(
         config_path='',
-        load_from=r"weights\before_shufflenetv2_weights\shufflenetv2_x0.5-f707e7126e.pth",  # pretrain weight of imagenet
-        model_prefix='shufflenetv2',  # above model_prefix
-        model_suffix='0.5',  # above model_suffix
-        clip_grad=False,  # to clip grad if use vit or swint
+        load_from=r"",  # pretrain weight of imagenet
+        model_prefix='resnet',  # above model_prefix
+        model_suffix='18',  # above model_suffix
+        clip_grad=False,  # to clip grad if loss is nan
         img_path='data/ImageNetTE',  # the parent root where your train/val data are stored, not support test data
                           # -data
                           #     -train
@@ -71,27 +71,23 @@ configurations = {
         std=[0.229, 0.224, 0.225],  # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
         mixup=False,  # set num_workers=0 on Windows if use
         cutmix=False,  # set num_workers=0 on Windows if use
-        augment='simple',  # ['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']
+        augment='tawide',  # ['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']
         num_workers=0,  # how many workers to use for data loading. 'auto' means auto-select
         img_size=[224, 224],  # especially for efficientnetv1 b0->224, b1->240, b2->260, b3->300, b4->380, b5->456, b6->528, b7->600
                               # especially for xception 299
         num_classes=5,
         batch_size=32,
-        epochs=200,
+        epochs=100,
         device="cuda:0",  #  now only support single gpu or cpu, ['cuda:0', 'cpu']
         use_benchmark=True,  # use to speed up if your img_size doesn't change dynamically
         use_apex=True,  # use apex to train by mixed-precision
-        use_ema=True,  # use ema to train
-        warmup_epochs=10,  # linear warm up
-        optimizer_type='sgd',  # support: ['sgd', 'adam', 'adamw', 'rmsprop'] more details in utils/optimizer.py
-        init_lr=0.01,
-        scheduler_type='cosine_lr',  # support: ['cosine_lr', 'step_lr'] more details in utils/scheduler.py
-        steps=[50, 80],  # use steps if scheduler_type=='step_lr' else ignore, default mutiply 0.1 when training epoch == step
-        loss_type='LabelSmoothCELoss',  # support: ['CELoss', 'LabelSmoothCELoss', 'FocalLoss'] more details in utils/loss.py
-        # especially alpha/gamma for FocalLoss
-        alpha=1, # When α is a list, it is the weight of each category usually using in classify
-                 # When α is constant, the category weight is [α, 1-α, 1-α, ...] usually using in object detection
-        gamma=2  # retainnet set it to 2
+        use_ema=False,  # use ema to train
+        warmup_epochs=5,  # linear warm up
+        optimizer_type='sgd',  # support: ['sgd', 'adam', 'adamw', 'rmsprop']
+        init_lr=0.1,
+        scheduler_type='step_lr',  # support: ['cosine_lr', 'step_lr'] more details in utils/scheduler.py
+        steps=[30, 60, 90],  # use steps if scheduler_type=='step_lr', default mutiply 0.1 when training epoch == (step + warmup_epochs)
+        loss_type='CELoss',  # support: ['CELoss', 'LabelSmoothCELoss']
 
     ),
 }

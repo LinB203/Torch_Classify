@@ -27,8 +27,14 @@ def load_train_weight(net, load_from, optimizer, scheduler, scaler, net_ema):
         net.load_state_dict(load_weights_dict, strict=False)
         optimizer.load_state_dict(save_net['optimizer'])
         scheduler.load_state_dict(save_net['scheduler'])
-        scaler.load_state_dict(save_net['scaler'])
-        net_ema.load_state_dict(save_net['net_ema'])
+        try:
+            scaler.load_state_dict(save_net['scaler'])
+        except:
+            pass
+        try:
+            net_ema.load_state_dict(save_net['net_ema'])
+        except:
+            pass
         print('[INFO] Successfully Load Weight From {}...'.format(load_from))
     except KeyError:
         pretrain_weights = torch.load(load_from)

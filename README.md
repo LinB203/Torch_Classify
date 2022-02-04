@@ -4,19 +4,27 @@
 
 起因：因为我看github上面很多其他计算机视觉任务的集成，都写得很好了，但是分类这块，一直没找到我想要的那种，索性自己整理了一个符合自己需求的。以后也会陆续添加模型。
 
-* 本教程是对本人本科生期间的研究内容进行整理总结，总结的同时也希望能够帮助更多的小伙伴。后期如果有学习到新的知识也会与大家一起分享。
-* 本教程使用Pytorch进行网络的搭建与训练。
+* 本仓库是对本人本科生期间的研究内容进行整理总结，总结的同时也希望能够帮助更多的小伙伴。
+* 本仓库使用Pytorch进行网络的搭建与训练。
 * 本教程参考的链接附在最后。感谢大家的支持。
 
 ## 目前
 
+#### 2022.02.04
+
+* 优化了优化器和训练策略的代码
+* 优化了数据增强的代码
+* 优化了train_config.py
+* 删除了Flocal Loss，分类当中用Label Smooth足够了
+
 #### 2022.02.03
 
 * 纠正了环境配置
-* 增加['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']的数据增强
-* 增加cutmix、mixup、ema、clip_grad
-* 优化外部apex为torch.cuda.apex
-* 优化断点续训的功能
+* 增加了['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']的数据增强
+* 增加了cutmix、mixup、ema、clip_grad
+* 优化了外部apex为torch.cuda.apex
+* 优化了断点续训的功能
+* 优化了Label Smooth
 
 #### 2022.02.02
 
@@ -127,7 +135,7 @@
 
 * Anaconda3
 * python 3.8
-* pycharm (IDE， 建议使用)
+* pycharm(IDE， 建议使用)
 * pytorch 1.10(若不需要SwinT，降级到1.8是没问题的)
 * torchvision 0.11.1
 * Cuda10.2
@@ -135,9 +143,9 @@
 ### 安装Pytorch
 
 ```
+# Windows & Linux
 conda create -n torch110 python=3.8
 conda activate torch110
-# Windows & Linux
 pip3 install torch==1.10.0+cu102 torchvision==0.11.1+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
 ```
 
@@ -145,14 +153,14 @@ pip3 install torch==1.10.0+cu102 torchvision==0.11.1+cu102 -f https://download.p
 
 在train_config.py中修改你想要的模型配置，注意，我的代码中，**每个模型有2部分组成**，分别是model_prefix和model_suffix。
 
-例如：
+例如**搭建shufflenetv2_0.5**：
 
 ```
 model_prefix='shufflenetv2'
 model_suffix='0.5'
 ```
 
-为了方便大家，我写了关于参数用途的注释。配置好之后运行train.py
+为了方便大家，我写了关于参数用途的注释。配置好之后运行train.py或predict.py。
 
 # 可视化相关指标
 
