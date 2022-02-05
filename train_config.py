@@ -54,17 +54,16 @@ configurations = {
         model_suffix='0.5',  # above model_suffix
         clip_grad=False,  # to clip grad if loss is nan
         img_path='./data/ImageNetTE',  # the parent root where your train/val data are stored, not support test data
-                          # -data
-                          #     -train
-                          #         -class_0
-                          #             -1.jpg
-                          #             -..jpg
-                          #         -class_1
-                          #         -...
-                          #     -val
-                          #         -class_0
-                          #         -class_1
-                          #         -...
+                      # -data
+                      #   -train
+                      #     -class_0
+                      #       -1.jpg
+                      #     -class_1
+                      #     -...
+                      #   -val
+                      #     -class_0
+                      #     -class_1
+                      #     -...
         log_root='./logs',  # the root to log your train/val status
         exp_name='exp', # default prefix of exp_name, will save in "model/exp_name_x"
         mean=[0.485, 0.456, 0.406],  # [0.485, 0.456, 0.406] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]

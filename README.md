@@ -127,15 +127,15 @@
 
 ```
 # -data
-#    -train
-#       -class_0
-#          -1.jpg
-#       -class_1
-#       -...
-#    -val
-#       -class_0
-#       -class_1
-#       -...
+#   -train
+#     -class_0
+#       -1.jpg
+#     -class_1
+#     -...
+#   -val
+#     -class_0
+#     -class_1
+#     -...
 ```
 
 ## 环境配置
