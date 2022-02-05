@@ -1,10 +1,11 @@
 cfg:
   config_path: ''
-  load_from: D:\BaiduNetdiskDownload\Torch_Classify权重\before_shufflenetv2_weights\shufflenetv2_x0.5-f707e7126e.pth
+  load_from: ./weights/before_shufflenetv2_weights/shufflenetv2_x0.5-f707e7126e.pth
   model_prefix: shufflenetv2
   model_suffix: '0.5'
-  img_path: data/ImageNetTE
-  log_root: logs
+  clip_grad: false
+  img_path: ./data/ImageNetTE
+  log_root: ./logs
   exp_name: exp
   mean:
   - 0.485
@@ -16,25 +17,25 @@ cfg:
   - 0.225
   mixup: false
   cutmix: false
-  augment: simple
+  augment: tawide
   num_workers: 0
   img_size:
   - 224
   - 224
   num_classes: 5
-  batch_size: 32
-  epochs: 200
+  batch_size: 64
+  epochs: 100
   device: cuda:0
   use_benchmark: true
   use_apex: true
-  use_ema: true
-  warmup_epochs: 10
+  use_ema: false
+  warmup_epochs: 5
+  warmup_type: linear
   optimizer_type: sgd
-  init_lr: 0.01
+  init_lr: 0.1
   scheduler_type: cosine_lr
   steps:
-  - 50
-  - 80
+  - 30
+  - 60
+  - 90
   loss_type: LabelSmoothCELoss
-  alpha: 1
-  gamma: 2

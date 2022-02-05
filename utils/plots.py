@@ -71,7 +71,8 @@ def plot_txt(log_dir, num_classes, labels_name):
     plt.savefig(os.path.join(log_dir, 'P-R-F1-per-class.jpg'), dpi=600, bbox_inches='tight')
 
 
-def plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, warmup_epochs, epochs, log_dir):
+def plot_lr_scheduler(warmup_type, optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, gamma, warmup_decay, warmup_epochs, epochs, log_dir):
+
 
     if optimizer_type == 'sgd':
         optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001)
@@ -80,21 +81,31 @@ def plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, start_epoch,
     elif optimizer_type == 'adamw':
         optimizer = optim.AdamW(net.parameters(), lr=init_lr, weight_decay=0.0001)
     elif optimizer_type == 'rmsprop':
-        optimizer = optim.RMSprop(net.parameters(), lr=init_lr, alpha=0.9, eps=0.0316, weight_decay=0.0001, momentum=0.9)
+        optimizer = optim.RMSprop(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001, alpha=0.9,
+                                  eps=0.0316)
     else:
         raise ValueError('Unsupported optimizer_type - `{}`. Only sgd, adam, adamw, rmsprop'.format(optimizer_type))
 
     if scheduler_type == "step_lr":
-        main_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps)
+        main_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps, gamma=gamma)
     elif scheduler_type == "cosine_lr":
         main_lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+    elif scheduler_type == "exponential_lr":
+        main_lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
     else:
         raise ValueError('Unsupported scheduler_type - {}. Only step_lr, cosine_lr are supported.'.format(scheduler_type))
 
     if warmup_epochs > 0:
-            warmup_lr_scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=warmup_epochs)
-    scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmup_lr_scheduler, main_lr_scheduler],
-                                                      milestones=[warmup_epochs])
+        if warmup_type == 'linear':
+            warmup_lr_scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=warmup_decay, total_iters=warmup_epochs)
+        elif warmup_type == "constant":
+            warmup_lr_scheduler = optim.lr_scheduler.ConstantLR(optimizer, factor=warmup_decay, total_iters=warmup_epochs)
+        else:
+            raise ValueError('Unsupported warmup_type - {}. Only linear, constant are supported.'.format(warmup_type))
+        scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmup_lr_scheduler, main_lr_scheduler],
+                                                    milestones=[warmup_epochs])
+    else:
+        scheduler = main_lr_scheduler
 
     plt.figure()
     y = []

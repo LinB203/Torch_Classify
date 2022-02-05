@@ -49,11 +49,11 @@
 configurations = {
     'cfg': dict(
         config_path='',
-        load_from=r"",  # pretrain weight of imagenet
-        model_prefix='resnet',  # above model_prefix
-        model_suffix='18',  # above model_suffix
+        load_from=r"./weights/before_shufflenetv2_weights/shufflenetv2_x0.5-f707e7126e.pth",  # pretrain weight of imagenet
+        model_prefix='shufflenetv2',  # above model_prefix
+        model_suffix='0.5',  # above model_suffix
         clip_grad=False,  # to clip grad if loss is nan
-        img_path='data/ImageNetTE',  # the parent root where your train/val data are stored, not support test data
+        img_path='./data/ImageNetTE',  # the parent root where your train/val data are stored, not support test data
                           # -data
                           #     -train
                           #         -class_0
@@ -65,7 +65,7 @@ configurations = {
                           #         -class_0
                           #         -class_1
                           #         -...
-        log_root='logs',  # the root to log your train/val status
+        log_root='./logs',  # the root to log your train/val status
         exp_name='exp', # default prefix of exp_name, will save in "model/exp_name_x"
         mean=[0.485, 0.456, 0.406],  # [0.485, 0.456, 0.406] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
         std=[0.229, 0.224, 0.225],  # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
@@ -76,18 +76,20 @@ configurations = {
         img_size=[224, 224],  # especially for efficientnetv1 b0->224, b1->240, b2->260, b3->300, b4->380, b5->456, b6->528, b7->600
                               # especially for xception 299
         num_classes=5,
-        batch_size=32,
+        batch_size=64,
         epochs=100,
         device="cuda:0",  #  now only support single gpu or cpu, ['cuda:0', 'cpu']
         use_benchmark=True,  # use to speed up if your img_size doesn't change dynamically
         use_apex=True,  # use apex to train by mixed-precision
         use_ema=False,  # use ema to train
         warmup_epochs=5,  # linear warm up
+        warmup_type='linear',  # support: ['linear', 'constant']
         optimizer_type='sgd',  # support: ['sgd', 'adam', 'adamw', 'rmsprop']
         init_lr=0.1,
-        scheduler_type='step_lr',  # support: ['cosine_lr', 'step_lr'] more details in utils/scheduler.py
+        scheduler_type='cosine_lr',  # support: ['cosine_lr', 'step_lr', 'exponential_lr'] more details in utils/scheduler.py
         steps=[30, 60, 90],  # use steps if scheduler_type=='step_lr', default mutiply 0.1 when training epoch == (step + warmup_epochs)
-        loss_type='CELoss',  # support: ['CELoss', 'LabelSmoothCELoss']
+        loss_type='LabelSmoothCELoss',  # support: ['CELoss', 'LabelSmoothCELoss']
 
     ),
 }
+print('[INFO] Run train.py')

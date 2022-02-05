@@ -63,3 +63,5 @@ configurations = {
         device="cuda:0",  #  now only support single gpu or cpu, ['cuda:0', 'cpu']
     ),
 }
+
+print('[INFO] Predict train.py')

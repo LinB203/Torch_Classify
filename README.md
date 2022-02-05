@@ -10,6 +10,13 @@
 
 ## 目前
 
+#### 2022.02.05
+
+* 增加了exponential_lr的训练策略
+* 增加了constant的warmup策略
+* 修复了路径在Ubuntu下不适用的BUG
+* 修复了无warmup时画学习率报错的BUG
+
 #### 2022.02.04
 
 * 优化了优化器和训练策略的代码
@@ -166,10 +173,16 @@ model_suffix='0.5'
 
 训练完成之后在你的log_dir中查看训练过程。
 
-<img src="./logs/shufflenetv2_0.5/exp0/P-R-F1-per-class.jpg" width="700"/>
-<img src="./logs/shufflenetv2_0.5/exp0/Acc-P-R-F1.jpg" width="700"/>
-<img src="./logs/shufflenetv2_0.5/exp0/data_distribution.jpg" width="700" />
-<img src="./logs/shufflenetv2_0.5/exp0/confusion matrix.jpg" width="700" />
+<center>
+<figure>
+<img src="./logs/shufflenetv2_0.5/exp0/train_val_loss.jpg" height="210" " />
+<img src="./logs/shufflenetv2_0.5/exp0/P-R-F1-per-class.jpg" height="210" " />
+<img src="./logs/shufflenetv2_0.5/exp0/Acc-P-R-F1.jpg" height="210" " />
+<img src="./logs/shufflenetv2_0.5/exp0/scheduler.jpg" height="210" " />
+<img src="./logs/shufflenetv2_0.5/exp0/data_distribution.jpg" height="210" " />
+<img src="./logs/shufflenetv2_0.5/exp0/confusion_matrix.jpg" height="210" " />
+</figure>
+</center>
 
 # 预测
 

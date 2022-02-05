@@ -1,9 +1,9 @@
-from copy import copy, deepcopy
 
 if __name__ == '__main__':
     import os
     import json
     import warnings
+
     warnings.filterwarnings("ignore")
     import numpy as np
     from tqdm import tqdm
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     from torch.utils.data.dataloader import default_collate
     from torch.utils.tensorboard import SummaryWriter
 
-    from torchvision import transforms, datasets
+    from torchvision import datasets
     from torchvision.transforms import autoaugment, transforms
     from torchvision.transforms.functional import InterpolationMode
 
@@ -58,7 +58,8 @@ if __name__ == '__main__':
     augment = cfg['augment']
     use_ema = cfg['use_ema']
     clip_grad = cfg['clip_grad']
-    print(cfg)
+    warmup_type = cfg['warmup_type']
+    # print(cfg)
 
     model_name = model_prefix + '_' + model_suffix
     log_dir = increment_path(os.path.join(log_root, model_name, exp_name))
@@ -75,7 +76,7 @@ if __name__ == '__main__':
 
     print('[INFO] Logs will be saved in {}...'.format(log_dir))
 
-    class_index = ' '.join(['%7s'%(str(i)) for i in np.arange(num_classes)])
+    class_index = ' '.join(['%7s' % (str(i)) for i in np.arange(num_classes)])
     with open(results_file, 'w') as f:
         f.write('epoch ' + 'accuracy ' + 'precision ' + 'recall ' + 'F1-score ' + \
                 class_index + ' ' + class_index + ' ' + class_index)
@@ -85,7 +86,8 @@ if __name__ == '__main__':
         num_workers = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
 
     IpMode = InterpolationMode.BILINEAR
-    train_compose = [transforms.RandomResizedCrop(img_size, interpolation=IpMode), transforms.RandomHorizontalFlip(p=0.5)]
+    train_compose = [transforms.RandomResizedCrop(img_size, interpolation=IpMode),
+                     transforms.RandomHorizontalFlip(p=0.5)]
     if augment == 'ra':
         train_compose.append(autoaugment.RandAugment(interpolation=IpMode))
     elif augment == 'simple':
@@ -93,12 +95,14 @@ if __name__ == '__main__':
     elif augment == 'tawide':
         train_compose.append(autoaugment.TrivialAugmentWide(interpolation=IpMode))
     else:
-        train_compose.append(autoaugment.AutoAugment(policy=autoaugment.AutoAugmentPolicy(augment), interpolation=IpMode))
+        train_compose.append(
+            autoaugment.AutoAugment(policy=autoaugment.AutoAugmentPolicy(augment), interpolation=IpMode))
 
     train_compose.extend([transforms.PILToTensor(), transforms.ConvertImageDtype(torch.float),
                           transforms.Normalize(mean, std), transforms.RandomErasing(p=0.2)])
     data_transform = {"train": transforms.Compose(train_compose),
-                      "val": transforms.Compose([transforms.Resize((int(img_size[0] * 1.143), int(img_size[1] * 1.143)), interpolation=IpMode),
+                      "val": transforms.Compose([transforms.Resize((int(img_size[0] * 1.143), int(img_size[1] * 1.143)),
+                                                                   interpolation=IpMode),
                                                  transforms.CenterCrop(img_size),
                                                  transforms.PILToTensor(),
                                                  transforms.ConvertImageDtype(torch.float),
@@ -154,23 +158,37 @@ if __name__ == '__main__':
     elif optimizer_type == 'adamw':
         optimizer = optim.AdamW(net.parameters(), lr=init_lr, weight_decay=0.0001)
     elif optimizer_type == 'rmsprop':
-        optimizer = optim.RMSprop(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001, alpha=0.9, eps=0.0316)
+        optimizer = optim.RMSprop(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001, alpha=0.9,
+                                  eps=0.0316)
     else:
         raise ValueError('Unsupported optimizer_type - `{}`. Only sgd, adam, adamw, rmsprop'.format(optimizer_type))
 
     if scheduler_type == "step_lr":
-        main_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps)
+        gamma = 0.1
+        main_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps, gamma=gamma)
     elif scheduler_type == "cosine_lr":
+        gamma = 0
         main_lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+    elif scheduler_type == "exponential_lr":
+        gamma = 0.9
+        main_lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
     else:
-        raise ValueError('Unsupported scheduler_type - {}. Only step_lr, cosine_lr are supported.'.format(scheduler_type))
+        raise ValueError('Unsupported scheduler_type - {}. Only step_lr, cosine_lr, exponential_lr are supported.'.format(scheduler_type))
 
     if warmup_epochs > 0:
-        warmup_lr_scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=0.01, total_iters=warmup_epochs)
+        if warmup_type == 'linear':
+            warmup_decay = 0.05
+            warmup_lr_scheduler = optim.lr_scheduler.LinearLR(optimizer, start_factor=warmup_decay, total_iters=warmup_epochs)
+        elif warmup_type == "constant":
+            warmup_decay = 1.0 / 3
+            warmup_lr_scheduler = optim.lr_scheduler.ConstantLR(optimizer, factor=warmup_decay, total_iters=warmup_epochs)
+        else:
+            raise ValueError('Unsupported warmup_type - {}. Only linear, constant are supported.'.format(warmup_type))
         scheduler = optim.lr_scheduler.SequentialLR(optimizer, schedulers=[warmup_lr_scheduler, main_lr_scheduler],
-                                                      milestones=[warmup_epochs])
+                                                    milestones=[warmup_epochs])
     else:
         scheduler = main_lr_scheduler
+
     scaler = torch.cuda.amp.GradScaler() if use_apex else None
 
     net_ema = None
@@ -196,7 +214,7 @@ if __name__ == '__main__':
             raise FileNotFoundError("[INFO] Not found weights file: {}...".format(load_from))
 
     start_epoch = scheduler.last_epoch
-    plot_lr_scheduler(optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, warmup_epochs, epochs, log_dir)
+    plot_lr_scheduler(warmup_type, optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, gamma, warmup_decay, warmup_epochs, epochs, log_dir)
 
     best_acc = 0.0
     train_steps = len(train_loader)
@@ -240,7 +258,8 @@ if __name__ == '__main__':
 
             # print statistics
             train_per_epoch_loss += loss.item()
-            train_bar.desc = "train epoch[{}/{}] train_loss:{:.3f} lr:{:.6f}".format(epoch + 1, epochs, loss, optimizer.param_groups[0]["lr"])
+            train_bar.desc = "train epoch[{}/{}] train_loss:{:.3f} lr:{:.6f}".format(epoch + 1, epochs, loss,
+                                                                                     optimizer.param_groups[0]["lr"])
 
         train_per_epoch_loss = train_per_epoch_loss / train_steps
         train_loss_list.append(train_per_epoch_loss)
@@ -261,7 +280,7 @@ if __name__ == '__main__':
                 # confusion.update(val_labels, outputs, predict_y)
                 confusion.acc_p_r_f1()
                 val_per_epoch_loss += val_loss.item()
-                val_bar.desc = 'val epoch[{}/{}] val_loss:{:.3f} Acc: {:.3f} '\
+                val_bar.desc = 'val epoch[{}/{}] val_loss:{:.3f} Acc: {:.3f} ' \
                                'P: {:.3f} R: {:.3f} F1: {:.3f}'.format(epoch + 1, epochs,
                                                                        val_loss,
                                                                        confusion.mean_val_accuracy,
@@ -282,7 +301,8 @@ if __name__ == '__main__':
 
         if confusion.mean_val_accuracy > best_acc:
             best_acc = confusion.mean_val_accuracy
-            checkpoint = {'epoch': epoch, 'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()}
+            checkpoint = {'epoch': epoch, 'net': net.state_dict(), 'optimizer': optimizer.state_dict(),
+                          'scheduler': scheduler.state_dict()}
             if scaler:
                 checkpoint["scaler"] = scaler.state_dict()
             if net_ema:
@@ -294,7 +314,8 @@ if __name__ == '__main__':
             confusion_matrix = confusion.confusionmat.int().numpy()
             confusion.save(results_file, epoch + 1)
 
-    checkpoint = {'epoch': epochs, 'net': net.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict()}
+    checkpoint = {'epoch': epochs, 'net': net.state_dict(), 'optimizer': optimizer.state_dict(),
+                  'scheduler': scheduler.state_dict()}
     if scaler:
         checkpoint["scaler"] = scaler.state_dict()
     if net_ema:
@@ -304,5 +325,5 @@ if __name__ == '__main__':
     plot_loss(log_dir, train_loss_list, val_loss_list)
     plot_confusion_matrix(confusion_matrix, log_dir)
     print('[INFO] Results will be saved in {}...'.format(log_dir))
-    print('[INFO] Finish Training...Cost time: %ss'%(time()-start_time))
+    print('[INFO] Finish Training...Cost time: %ss' % (time() - start_time))
     print(cfg)
