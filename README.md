@@ -6,7 +6,7 @@
 
 * 本仓库是对本人本科生期间的研究内容进行整理总结，总结的同时也希望能够帮助更多的小伙伴。
 * 本仓库使用Pytorch进行网络的搭建与训练。
-* 本教程参考的链接附在最后。感谢大家的支持。
+* 本仓库参考的链接附在最后。感谢大家的支持。
 
 ## 目前
 
@@ -175,12 +175,12 @@ model_suffix='0.5'
 
 <center>
 <figure>
-<img src="./logs/shufflenetv2_0.5/exp0/train_val_loss.jpg" height="210" " />
-<img src="./logs/shufflenetv2_0.5/exp0/P-R-F1-per-class.jpg" height="210" " />
-<img src="./logs/shufflenetv2_0.5/exp0/Acc-P-R-F1.jpg" height="210" " />
-<img src="./logs/shufflenetv2_0.5/exp0/scheduler.jpg" height="210" " />
-<img src="./logs/shufflenetv2_0.5/exp0/data_distribution.jpg" height="210" " />
-<img src="./logs/shufflenetv2_0.5/exp0/confusion_matrix.jpg" height="210" " />
+<img src="./logs/shufflenetv2_0.5/exp0/train_val_loss.jpg" width="300" />
+<img src="./logs/shufflenetv2_0.5/exp0/P-R-F1-per-class.jpg" width="300" />
+<img src="./logs/shufflenetv2_0.5/exp0/Acc-P-R-F1.jpg" width="300" />
+<img src="./logs/shufflenetv2_0.5/exp0/scheduler.jpg" width="300" />
+<img src="./logs/shufflenetv2_0.5/exp0/data_distribution.jpg" width="300" />
+<img src="./logs/shufflenetv2_0.5/exp0/confusion_matrix.jpg" width="300" />
 </figure>
 </center>
 
