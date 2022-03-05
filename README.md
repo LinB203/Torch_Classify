@@ -10,6 +10,16 @@
 
 ## 目前
 
+#### 2022.03.04
+
+* 增加了一机多卡的分布式训练
+* 增加了resume功能
+* 增加了关于数据增强、优化器可调节、只测试不训练的参数
+* 增加了AdderNet
+* 修复了若使用Mixup或Cutmix，则在Windows上必须设置num_worker=0的BUG
+* 优化了train_config.py
+* 优化了关于dataloader的参数，默认情况下比之前加载数据更快
+
 #### 2022.02.05
 
 * 增加了exponential_lr的训练策略
@@ -119,6 +129,8 @@
 #  --------------------------------------------------------------------------------------
 # |convnext        |tiny small base large xlarge                                         |
 #  --------------------------------------------------------------------------------------
+# |addernet        |50                                                                   |
+#  --------------------------------------------------------------------------------------
 ```
 
 # 训练准备
@@ -167,7 +179,15 @@ model_prefix='shufflenetv2'
 model_suffix='0.5'
 ```
 
-为了方便大家，我写了关于参数用途的注释。配置好之后运行train.py或predict.py。
+我写了关于参数用途的注释在train_config.py中。
+如果你是单卡，在train_config.py配置好之后运行train.py或predict.py。
+
+如果要使用多卡，使用以下指令启动，注意直接运行是不可以的，需要在终端输入。
+
+```python -m torch.distributed.launch --nproc_per_node=2 --use_env train_multi_gpu.py```
+
+其中```nproc_per_node```为GPU的数量，更详细的请在train_config.py下方查看。
+
 
 # 可视化相关指标
 
@@ -175,12 +195,12 @@ model_suffix='0.5'
 
 <center>
 <figure>
-<img src="./logs/shufflenetv2_0.5/exp0/train_val_loss.jpg" width="300" />
-<img src="./logs/shufflenetv2_0.5/exp0/P-R-F1-per-class.jpg" width="300" />
-<img src="./logs/shufflenetv2_0.5/exp0/Acc-P-R-F1.jpg" width="300" />
-<img src="./logs/shufflenetv2_0.5/exp0/scheduler.jpg" width="300" />
-<img src="./logs/shufflenetv2_0.5/exp0/data_distribution.jpg" width="300" />
-<img src="./logs/shufflenetv2_0.5/exp0/confusion_matrix.jpg" width="300" />
+<img src="./logs/resnet_18/exp0/train_val_loss.jpg" width="300" />
+<img src="./logs/resnet_18/exp0/P_R_F1_per_class.jpg" width="300" />
+<img src="./logs/resnet_18/exp0/Acc_P_R_F1.jpg" width="300" />
+<img src="./logs/resnet_18/exp0/scheduler.jpg" width="300" />
+<img src="./logs/resnet_18/exp0/data_distribution.jpg" width="300" />
+<img src="./logs/resnet_18/exp0/confusion_matrix.jpg" width="300" />
 </figure>
 </center>
 
@@ -215,7 +235,8 @@ model_suffix='0.5'
   * mnasnet 链接：https://pan.baidu.com/s/1Vs3c-qU0IyQCs7BUpQ5HaA?pwd=BDAS   提取码：BDAS 
   * swint 链接：https://pan.baidu.com/s/1H4bdl4n6mOIRnzvvawFz8w?pwd=BDAS  提取码：BDAS 
   * convnext 链接：https://pan.baidu.com/s/1mDbieiXhWVFfrfS0_jGRpQ?pwd=BDAS  提取码：BDAS 
-
+  * addernet 链接：https://pan.baidu.com/s/1wqNOtOVkpAtErkqeTfI26Q?pwd=BDAS  提取码：BDAS
+  
 # 参考
 
 1. https://github.com/pytorch/vision/tree/master/torchvision/models

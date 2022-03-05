@@ -44,51 +44,89 @@
 #  --------------------------------------------------------------------------------------
 # |convnext        |tiny small base large xlarge                                         |
 #  --------------------------------------------------------------------------------------
+# |addernet        |50                                                                   |
+#  --------------------------------------------------------------------------------------
+
 
 
 configurations = {
     'cfg': dict(
-        config_path='',
-        load_from=r"./weights/before_shufflenetv2_weights/shufflenetv2_x0.5-f707e7126e.pth",  # pretrain weight of imagenet
-        model_prefix='shufflenetv2',  # above model_prefix
-        model_suffix='0.5',  # above model_suffix
-        clip_grad=False,  # to clip grad if loss is nan
-        img_path='./data/ImageNetTE',  # the parent root where your train/val data are stored, not support test data
-                      # -data
-                      #   -train
-                      #     -class_0
-                      #       -1.jpg
-                      #     -class_1
-                      #     -...
-                      #   -val
-                      #     -class_0
-                      #     -class_1
-                      #     -...
-        log_root='./logs',  # the root to log your train/val status
-        exp_name='exp', # default prefix of exp_name, will save in "model/exp_name_x"
-        mean=[0.485, 0.456, 0.406],  # [0.485, 0.456, 0.406] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
-        std=[0.229, 0.224, 0.225],  # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
-        mixup=False,  # set num_workers=0 on Windows if use
-        cutmix=False,  # set num_workers=0 on Windows if use
-        augment='tawide',  # ['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']
-        num_workers=0,  # how many workers to use for data loading. 'auto' means auto-select
-        img_size=[224, 224],  # especially for efficientnetv1 b0->224, b1->240, b2->260, b3->300, b4->380, b5->456, b6->528, b7->600
-                              # especially for xception 299
+        # setup
+        config_path='',           # if you want to resume a config.
+        log_root='./logs',        # the root to log your train/val status
+        exp_name='exp',           # default prefix of exp_name, will save in "model/exp_name_x"
+        only_val=False,           # val only
+
+        # model
+        model_prefix='resnet',     # above model_prefix
+        model_suffix='18',         # above model_suffix
+        load_from=r"",             # pretrain weight of imagenet
+        resume=False,
+        use_ema=False,             # use ema to train
+
+        # data
         num_classes=5,
-        batch_size=64,
+        img_path='./data/test',    # the parent root where your train/val data are stored, not support test data
+
+        # transform
+        mean=[0.5, 0.5, 0.5],      # [0.485, 0.456, 0.406] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
+        std=[0.5, 0.5, 0.5],       # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
+        mixup_prob=0.1,            # float in [0.0, 1.0]
+        cutmix_prob=0.1,           # float in [0.0, 1.0]
+        random_erase_prob=0.1,     # float in [0.0, 1.0]
+        horizontal_flip=0.5,       # float in [0.0, 1.0]
+        augment='tawide',          # ['simple', 'ra', 'tawide', 'imagenet', 'cifar10', 'svhn']
+        img_size=[224, 224],       # efficientnetv1 b0:224, b1:240, b2:260, b3:300, b4:380, b5:456, b6:528, b7:600, xception 299
+        val_resize=[256, 256],
+
+        # dataloader
+        num_workers=8,             # workers per gpu
+        batch_size=128,            # batch size per gpu
+        persistent_workers=True,   # True or False
+        pin_memory=True,           # True or False
+
+        # train
         epochs=100,
-        device="cuda:0",  #  now only support single gpu or cpu, ['cuda:0', 'cpu']
-        use_benchmark=True,  # use to speed up if your img_size doesn't change dynamically
-        use_apex=True,  # use apex to train by mixed-precision
-        use_ema=False,  # use ema to train
-        warmup_epochs=5,  # linear warm up
-        warmup_type='linear',  # support: ['linear', 'constant']
-        optimizer_type='sgd',  # support: ['sgd', 'adam', 'adamw', 'rmsprop']
+        device="cuda",             # 'cuda' or 'cpu', don't change it if you use 2 or more gpus
+        use_benchmark=True,        # use to speed up if your img_size doesn't change dynamically
+        use_apex=True,             # use apex to train by mixed-precision
+
+        # optimizer
         init_lr=0.1,
-        scheduler_type='cosine_lr',  # support: ['cosine_lr', 'step_lr', 'exponential_lr'] more details in utils/scheduler.py
-        steps=[30, 60, 90],  # use steps if scheduler_type=='step_lr', default mutiply 0.1 when training epoch == (step + warmup_epochs)
-        loss_type='LabelSmoothCELoss',  # support: ['CELoss', 'LabelSmoothCELoss']
+        optimizer_type='sgd',      # support: ['sgd', 'adam', 'adamw', 'rmsprop']
+        momentum=0.9,
+        weight_decay=0.0001,
+        nesterov=False,             # for sgd
+        betas=[0.9, 0.999],        # for adam or adamw
+        eps=1e-6,
+
+        # scheduler
+        warmup_epochs=5,           # int >= 0
+        warmup_type='linear',      # support: ['linear', 'constant']
+        scheduler_type='cosine_lr',  # support: ['cosine_lr', 'step_lr', 'exponential_lr']
+        steps=[30, 60, 90],        # use steps if scheduler_type=='step_lr', default lr=lr*0.1 when training epoch == (step + warmup_epochs)
+
+        # criterion
+        loss_type='CELoss',
+        smoothing=0.1,             # float in [0.0, 1.0] for label smooth
+        clip_grad=False,           # to clip grad if loss is nan
+
+        # distributed
+        world_size=1,              # number of gpus
+        gpu_ids='0',               # don't have blank in gpu_ids
+        dist_backend='nccl',       # use 'gloo' in windows, 'nccl' in linux
+        dist_url='env://',
+        sync_bn=False,
 
     ),
 }
-print('[INFO] Run train.py')
+# if you use 2 or more gpus. there is a example command as follows.
+# python -m torch.distributed.launch --nproc_per_node=2 --use_env train_multi_gpu.py
+# nproc_per_node means how many gpus you have, change world_size=nproc_per_node, and gpu_ids is you want to use(eg. '0,1')
+
+# but if you have 2 or more gpus and want to run on a single gpu, change configures of gpu_ids above.
+# remember to change configures of distributed above(eg. world_size).
+
+# if you only have 1 gpu, change device to 'cuda', world_size=1, gpu_ids='0',then just run: python train.py.
+# if you want to run on cpu, change device to 'cpu' and just run: python train.py, ignore configures of distributed above.
+

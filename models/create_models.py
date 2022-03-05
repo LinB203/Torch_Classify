@@ -21,6 +21,7 @@ from .SwinT import swin_base_patch4_window7_224, swin_base_patch4_window12_384, 
     swin_base_patch4_window12_384_in22k, swin_small_patch4_window7_224, swin_tiny_patch4_window7_224, \
     swin_large_patch4_window7_224_in22k, swin_large_patch4_window12_384_in22k
 from .ConvNeXt import convnext_base, convnext_tiny, convnext_small, convnext_large, convnext_xlarge
+from .AdderNet import addernet50
 
 def create_model(model_name, num_classes):
     model_prefix = model_name.split('_')[0]
@@ -287,6 +288,13 @@ def create_model(model_name, num_classes):
             raise ValueError('[INFO] Unsupported model_suffix - `{}`, '
                              'Use base small tiny large xlarge'.format(model_suffix))
 
+    elif model_prefix == 'addernet':
+        if model_suffix == '50':
+            model = addernet50(num_classes=num_classes)
+        else:
+            raise ValueError('[INFO] Unsupported model_suffix - `{}`, '
+                             'Use base 20 50'.format(model_suffix))
+
     else:
         raise ValueError('[INFO] Unsupported model_prefix - `{}`, '
                          'Use vgg, resnet, regnetx, regnety, '
@@ -294,5 +302,6 @@ def create_model(model_name, num_classes):
                          'efficientnetv1, efficientnetv2, '
                          'shufflenetv2, densenet, goolenet, '
                          'vit, ghostnet, resmlp_mixer, mnasnet'
-                         'vovnet, se-resnet, squeezenet, swint, convnext'.format(model_prefix))
+                         'vovnet, se-resnet, squeezenet, swint, convnext'
+                         'addernet'.format(model_prefix))
     return model

@@ -1,43 +1,44 @@
 import os.path
 import glob
-from train_config import *
 from pathlib import Path
 import re
 import torch
 from ruamel import yaml
 
-def create_config(log_dir, configurations=configurations):
+def create_config(log_dir, cfg):
     from ruamel.yaml import YAML
     YAML = YAML()
     with open(os.path.join(log_dir, 'configs.yaml'), mode='w', encoding='utf-8') as file:
-        YAML.dump(configurations, file)
+        YAML.dump(cfg, file)
 
 def load_config(config_path):
     with open(config_path, "r", encoding="utf-8") as f:
-        configurations = yaml.load(f.read(), Loader=yaml.Loader)
-    return configurations['cfg']
+        cfg = yaml.load(f.read(), Loader=yaml.Loader)
+    return cfg
 
-def load_train_weight(net, load_from, optimizer, scheduler, scaler, net_ema):
+def load_train_weight(net, load_from, optimizer, scheduler, scaler, net_ema, cfg):
     try:
-        save_net = torch.load(load_from)
+        save_net = torch.load(load_from, map_location="cpu")
         pretrain_weights = save_net['net']
         public_keys = list(set(list(pretrain_weights.keys())) & set(list(net.state_dict().keys())))
         load_weights_dict = {k: pretrain_weights[k] for k in public_keys if
                              net.state_dict()[k].numel() == pretrain_weights[k].numel()}
         net.load_state_dict(load_weights_dict, strict=False)
-        optimizer.load_state_dict(save_net['optimizer'])
-        scheduler.load_state_dict(save_net['scheduler'])
-        try:
-            scaler.load_state_dict(save_net['scaler'])
-        except:
-            pass
-        try:
-            net_ema.load_state_dict(save_net['net_ema'])
-        except:
-            pass
+
+        if cfg['resume']:
+            optimizer.load_state_dict(save_net['optimizer'])
+            scheduler.load_state_dict(save_net['scheduler'])
+            try:
+                scaler.load_state_dict(save_net['scaler'])
+            except:
+                pass
+            try:
+                net_ema.load_state_dict(save_net['net_ema'])
+            except:
+                pass
         print('[INFO] Successfully Load Weight From {}...'.format(load_from))
     except KeyError:
-        pretrain_weights = torch.load(load_from)
+        pretrain_weights = torch.load(load_from, map_location="cpu")
         # print(pretrain_weights.keys())
         public_keys = list(set(list(pretrain_weights.keys())) & set(list(net.state_dict().keys())))
         # print(public_keys)
@@ -49,7 +50,7 @@ def load_train_weight(net, load_from, optimizer, scheduler, scaler, net_ema):
 
 def load_predict_weight(net, load_from):
     try:
-        save_net = torch.load(load_from)
+        save_net = torch.load(load_from, map_location="cpu")
         pretrain_weights = save_net['net']
         public_keys = list(set(list(pretrain_weights.keys())) & set(list(net.state_dict().keys())))
         load_weights_dict = {k: pretrain_weights[k] for k in public_keys if
@@ -57,7 +58,7 @@ def load_predict_weight(net, load_from):
         net.load_state_dict(load_weights_dict, strict=False)
         # return net
     except KeyError:
-        pretrain_weights = torch.load(load_from)
+        pretrain_weights = torch.load(load_from, map_location="cpu")
         public_keys = list(set(list(pretrain_weights.keys())) & set(list(net.state_dict().keys())))
         load_weights_dict = {k: pretrain_weights[k] for k in public_keys if
                              net.state_dict()[k].numel() == pretrain_weights[k].numel()}

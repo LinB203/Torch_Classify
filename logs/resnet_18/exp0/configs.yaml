@@ -1,0 +1,62 @@
+config_path: ''
+log_root: ./logs
+exp_name: exp
+only_val: false
+model_prefix: resnet
+model_suffix: '18'
+load_from: ''
+resume: false
+use_ema: false
+num_classes: 5
+img_path: ./data/test
+mean:
+- 0.5
+- 0.5
+- 0.5
+std:
+- 0.5
+- 0.5
+- 0.5
+mixup_prob: 0.1
+cutmix_prob: 0.1
+random_erase_prob: 0.1
+horizontal_flip: 0.5
+augment: tawide
+img_size:
+- 224
+- 224
+val_resize:
+- 256
+- 256
+num_workers: 8
+batch_size: 128
+persistent_workers: true
+pin_memory: true
+epochs: 100
+device: cuda
+use_benchmark: true
+use_apex: true
+init_lr: 0.1
+optimizer_type: sgd
+momentum: 0.9
+weight_decay: 0.0001
+nesterov: false
+betas:
+- 0.9
+- 0.999
+eps: 1e-06
+warmup_epochs: 5
+warmup_type: linear
+scheduler_type: cosine_lr
+steps:
+- 30
+- 60
+- 90
+loss_type: CELoss
+smoothing: 0.1
+clip_grad: false
+world_size: 1
+gpu_ids: '0'
+dist_backend: nccl
+dist_url: env://
+sync_bn: false

@@ -1,9 +1,10 @@
 import torch
 
 class ConfusionMatrix():
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, device):
+        self.device = device
         self.num_classes = num_classes
-        self.confusionmat = torch.zeros((num_classes, num_classes))
+        self.confusionmat = torch.zeros((num_classes, num_classes)).to(device)
         self.per_recall = torch.zeros((1, num_classes))
         self.per_precision = torch.zeros((1, num_classes))
         self.per_F1 = torch.zeros((1, num_classes))
@@ -16,7 +17,7 @@ class ConfusionMatrix():
     def update(self, val_labels, predict_y):
         mask = (predict_y >= 0) & (predict_y < self.num_classes)
         label = self.num_classes * val_labels[mask].int() + predict_y[mask]
-        bincount = torch.bincount(label, minlength=self.num_classes ** 2).cpu()
+        bincount = torch.bincount(label, minlength=self.num_classes ** 2)
         self.confusionmat += bincount.reshape(self.num_classes, self.num_classes)
         # print(self.confusionmat)
 
@@ -49,4 +50,4 @@ class ConfusionMatrix():
         with open(results_file, 'a') as f:
             f.write('\n%5d'%epoch+' '+'%8.3f'%self.mean_val_accuracy+' '+'%9.3f'%self.mean_precision+' '+'%6.3f'%self.mean_recall+' '\
                     +'%8.3f'%self.mean_F1+' '+' '.join(self.per_precision)+' '+' '.join(self.per_recall)+' '+' '.join(self.per_F1))
-        self.__init__(self.num_classes)
+        self.__init__(self.num_classes, self.device)

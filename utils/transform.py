@@ -2,7 +2,10 @@ import math
 from typing import Tuple
 import torch
 from torch import Tensor
+import random
 from torchvision.transforms import functional as F
+
+
 class RandomMixup(torch.nn.Module):
     """Randomly apply Mixup to the provided batch and targets.
     The class implements the data augmentations as described in the paper
@@ -15,10 +18,8 @@ class RandomMixup(torch.nn.Module):
         inplace (bool): boolean to make this transform inplace. Default set to False.
     """
 
-    def __init__(self, num_classes: int, p: float = 0.5, alpha: float = 1.0, inplace: bool = False) -> None:
+    def __init__(self, num_classes: int, p: float = 1.0, alpha: float = 1.0, inplace: bool = False) -> None:
         super().__init__()
-        assert num_classes > 0, "Please provide a valid positive value for the num_classes."
-        assert alpha > 0, "Alpha param can't be zero."
 
         self.num_classes = num_classes
         self.p = p
@@ -89,10 +90,8 @@ class RandomCutmix(torch.nn.Module):
         inplace (bool): boolean to make this transform inplace. Default set to False.
     """
 
-    def __init__(self, num_classes: int, p: float = 0.5, alpha: float = 1.0, inplace: bool = False) -> None:
+    def __init__(self, num_classes: int, p: float = 1.0, alpha: float = 1.0, inplace: bool = False) -> None:
         super().__init__()
-        assert num_classes > 0, "Please provide a valid positive value for the num_classes."
-        assert alpha > 0, "Alpha param can't be zero."
 
         self.num_classes = num_classes
         self.p = p
@@ -162,3 +161,32 @@ class RandomCutmix(torch.nn.Module):
         s += ", inplace={inplace}"
         s += ")"
         return s.format(**self.__dict__)
+
+
+class choose_collate_fn():
+    def __init__(self, num_classes, mixup, cutmix):
+        super().__init__()
+        assert num_classes > 0, "Please provide a valid positive value for the num_classes."
+        self.num_classes = num_classes
+        self.mixup = mixup
+        self.cutmix = cutmix
+
+    def collate_fn(self, batch):
+        images, labels = list(zip(*batch))
+        images = torch.stack(images, dim=0)
+        labels = torch.as_tensor(labels)
+        if self.mixup != 0 and self.cutmix == 0:
+            images, labels = RandomMixup(self.num_classes, self.mixup)(images, labels)
+            return images, labels
+        elif self.mixup == 0 and self.cutmix != 0:
+            images, labels = RandomCutmix(self.num_classes, self.cutmix)(images, labels)
+            return images, labels
+        elif self.mixup != 0 and self.cutmix != 0:
+            if torch.rand(1).item() >= 0.5:
+                images, labels = RandomMixup(self.num_classes, self.mixup)(images, labels)
+                return images, labels
+            else:
+                images, labels = RandomCutmix(self.num_classes, self.cutmix)(images, labels)
+                return images, labels
+        else:
+            return images, labels

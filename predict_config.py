@@ -44,14 +44,17 @@
 #  --------------------------------------------------------------------------------------
 # |convnext        |tiny small base large xlarge                                         |
 #  --------------------------------------------------------------------------------------
+# |addernet        |50                                                                   |
+#  --------------------------------------------------------------------------------------
+
 
 configurations = {
     'cfg': dict(
-        load_from=r"C:\Torch_Classify\logs\shufflenetv2_0.5\exp0\last.pth",  # pretrain weight of imagenet
+        load_from=r"./logs/shufflenetv2_0.5/exp0/last.pth",  # pretrain weight of imagenet
         model_prefix='shufflenetv2',  # above model_prefix
         model_suffix='0.5',  # above model_suffix
-        predict_img_path=r"C:\Torch_Classify\data\ImageNetTE\train\n01440764\ILSVRC2012_val_00017472.JPEG",  # only use in predict.py
-        class_indices_path="logs\shufflenetv2_0.5\exp0\class_indices.json",  # only use in predict.py
+        predict_img_path=r"./data/ILSVRC2012_val_00017472.JPEG",  # only use in predict.py
+        class_indices_path="./logs/shufflenetv2_0.5/exp0/class_indices.json",  # only use in predict.py
         log_root='logs',  # the root to log your train/val status
         mean=[0.485, 0.456, 0.406],  # [0.485, 0.456, 0.406] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]
         std=[0.229, 0.224, 0.225],  # [0.229, 0.224, 0.225] if use pretrain weight of imagenet else [0.5, 0.5, 0.5]

@@ -51,7 +51,7 @@ def plot_txt(log_dir, num_classes, labels_name):
     ax[1, 0] = plot_base(ax[1, 0], epochs, recall, color='red', title='recall')
     ax[1, 1] = plot_base(ax[1, 1], epochs, F1, color='red', title='F1')
     fig.text(0.5, 0.04, 'Epoch', ha='center')
-    plt.savefig(os.path.join(log_dir, 'Acc-P-R-F1.jpg'), dpi=600, bbox_inches='tight')
+    plt.savefig(os.path.join(log_dir, 'Acc_P_R_F1.jpg'), dpi=600, bbox_inches='tight')
 
     fig, ax = plt.subplots(3, num_classes, figsize=(2 * num_classes, 2 * 3), sharex=True, sharey=True)
     for i in range(num_classes):
@@ -68,28 +68,27 @@ def plot_txt(log_dir, num_classes, labels_name):
     ax[1, 0].set_ylabel('Recall')
     ax[2, 0].set_ylabel('F1-score')
     fig.text(0.5, 0.04, 'Epoch', ha='center')
-    plt.savefig(os.path.join(log_dir, 'P-R-F1-per-class.jpg'), dpi=600, bbox_inches='tight')
+    plt.savefig(os.path.join(log_dir, 'P_R_F1_per_class.jpg'), dpi=600, bbox_inches='tight')
 
 
 def plot_lr_scheduler(warmup_type, optimizer_type, scheduler_type, net, init_lr, start_epoch, steps, gamma, warmup_decay, warmup_epochs, epochs, log_dir):
 
 
     if optimizer_type == 'sgd':
-        optimizer = optim.SGD(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001)
+        optimizer = optim.SGD(net.parameters(), lr=init_lr)
     elif optimizer_type == 'adam':
-        optimizer = optim.Adam(net.parameters(), lr=init_lr, weight_decay=0.0001)
+        optimizer = optim.Adam(net.parameters(), lr=init_lr)
     elif optimizer_type == 'adamw':
-        optimizer = optim.AdamW(net.parameters(), lr=init_lr, weight_decay=0.0001)
+        optimizer = optim.AdamW(net.parameters(), lr=init_lr)
     elif optimizer_type == 'rmsprop':
-        optimizer = optim.RMSprop(net.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0001, alpha=0.9,
-                                  eps=0.0316)
+        optimizer = optim.RMSprop(net.parameters(), lr=init_lr)
     else:
         raise ValueError('Unsupported optimizer_type - `{}`. Only sgd, adam, adamw, rmsprop'.format(optimizer_type))
 
     if scheduler_type == "step_lr":
         main_lr_scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=steps, gamma=gamma)
     elif scheduler_type == "cosine_lr":
-        main_lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs)
+        main_lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs - warmup_epochs, eta_min=1e-7)
     elif scheduler_type == "exponential_lr":
         main_lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
     else:
